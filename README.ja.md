@@ -1,5 +1,12 @@
 # XQueryer Lightweight
 
+[![GitHub stars](https://img.shields.io/github/stars/Asterbin/Asterbin-XQueryer-Lightweight?style=social)](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/stargazers)
+[![Release](https://img.shields.io/github/v/release/Asterbin/Asterbin-XQueryer-Lightweight?include_prereleases)](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/releases)
+[![Deploy documentation](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/actions/workflows/pages.yml/badge.svg)](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/actions/workflows/pages.yml)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
+
+[English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Español](README.es.md)
+
 XQueryer Lightweight は、粉末 X 線回折による結晶構造識別のための
 XQueryer 改良版です。元プロジェクト：
 https://github.com/Bin-Cao/XQueryer

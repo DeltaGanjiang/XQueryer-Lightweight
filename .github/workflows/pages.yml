@@ -7,7 +7,7 @@ on:
       - master
     paths:
       - "docs/**"
-      - "README.md"
+      - "README*.md"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -37,7 +37,7 @@ jobs:
         run: |
           mkdir -p _site
           cp -R docs/. _site/
-          cp README.md _site/README.md
+          cp README*.md _site/
           touch _site/.nojekyll
 
       - name: Upload Pages artifact
