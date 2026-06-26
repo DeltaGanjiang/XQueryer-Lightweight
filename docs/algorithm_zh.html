@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XQueryer Lightweight 算法说明书</title>
+  <style>
+    body { font-family: Arial, "Microsoft YaHei", sans-serif; line-height: 1.7; margin: 0; color: #1f2933; background: #f7f8fa; }
+    header, main { max-width: 980px; margin: 0 auto; padding: 24px; }
+    header { background: #ffffff; border-bottom: 1px solid #d8dee4; }
+    h1, h2 { color: #0f172a; }
+    code, pre { background: #eef2f7; border-radius: 6px; }
+    code { padding: 2px 5px; }
+    pre { padding: 14px; overflow-x: auto; }
+    a { color: #0b63ce; }
+    .nav { display: flex; gap: 12px; flex-wrap: wrap; }
+    .box { background: #ffffff; border: 1px solid #d8dee4; border-radius: 8px; padding: 18px; margin: 16px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="nav">
+      <a href="algorithm_en.html">English</a>
+      <a href="README.md">README</a>
+      <a href="https://github.com/Bin-Cao/XQueryer">原始 XQueryer</a>
+    </div>
+    <h1>XQueryer Lightweight 算法说明书</h1>
+    <p>作者：Dr. Bin Cao，<a href="https://bin-cao.github.io/">https://bin-cao.github.io/</a></p>
+  </header>
+  <main>
+    <section class="box">
+      <h2>项目概述</h2>
+      <p>本项目是 XQueryer 的轻量化改良版本。原项目主页：
+      <a href="https://github.com/Bin-Cao/XQueryer">https://github.com/Bin-Cao/XQueryer</a>。
+      新版本保留 100315 分类任务，但训练数据不再直接导入预生成 XRD，
+      而是从晶体结构数据库 <code>MP500.db</code> 动态模拟粉末 XRD。
+      所有模拟和实验谱图都会对齐到 10-90 度范围内的 3500 个点。</p>
+    </section>
+
+    <section class="box">
+      <h2>数据格式与下载</h2>
+      <p>请从本项目 GitHub Release 下载 <code>MP500.db</code>，放到
+      <code>data/MP500.db</code>。该文件是 ASE 数据库，共 100315 条结构。
+      ASE 的 entry id 从 1 开始；模型内部标签使用 <code>entry_id - 1</code>，
+      因此分类编号为 <code>0..100314</code>。</p>
+      <p>数据按结构划分，不按模拟谱图划分。固定随机种子打乱后使用
+      8:1:1：80% 训练集、10% 验证集、10% 测试集。</p>
+    </section>
+
+    <section class="box">
+      <h2>动态 XRD 模拟</h2>
+      <p>训练时，数据集会为每个结构随机抽取样品状态和外部环境参数，然后调用
+      <code>Pysimxrd.generator.parser(database, entry_id, ...)</code>。
+      默认每个结构模拟 20 条 XRD。</p>
+      <pre><code>grainsize: 10-100
+prefect_orientation: 两个值均在 -0.3 到 0.3 之间
+thermo_vibration: 0-2
+zero_shift: 0-2
+dis_detector2sample: 300-600
+half_height_slit_detector: 3-8
+half_height_sample: 1-4
+xrd: reciprocal
+background_order: 6
+background_ratio: 0.02-0.2
+mixture_noise_ratio: 0.01-0.1</code></pre>
+    </section>
+
+    <section class="box">
+      <h2>模型结构</h2>
+      <p>当前模型保留原始 XQueryer 的核心框架：FFT、CNN、Cross-Attention
+      和分类头。改动重点不是简单删掉注意力，而是把原来非常大的元素到序列映射
+      改成轻量的元素 query，让模型仍然能用元素信息引导 XRD token 匹配。</p>
+      <h3>1. FFT 频域分支</h3>
+      <p>输入 XRD 先归一化，然后做 real FFT。模型构造多组低通频率视图，
+      再通过 inverse FFT 回到实空间，并与原始谱图拼接。这样保留了 XQueryer
+      对频域信息的利用，可以增强模型对背景、峰展宽和高频噪声的鲁棒性。</p>
+      <h3>2. CNN 峰特征编码器</h3>
+      <p>FFT 得到的多通道谱图进入 residual depthwise-separable 1D CNN。
+      较大的卷积核负责捕捉峰宽、局部峰形和小角度偏移；步长卷积逐层压缩序列，
+      降低后续注意力计算量。相比普通宽卷积，这种结构更轻，但仍保留 XRD
+      局部峰形信息。</p>
+      <h3>3. Residual Cross-Attention</h3>
+      <p>CNN 特征先池化成固定数量的 XRD tokens。92 维元素存在向量会被编码成
+      多个结构 query，这些 query 通过 multi-head Cross-Attention 去读取 XRD
+      tokens。这样化学组成会参与决定哪些衍射峰更重要。相比原始模型中
+      <code>element -> 768 x 3500</code> 的大展开，本模型用少量 query 实现相同
+      的元素引导注意力思想。每层注意力都包含残差 Cross-Attention、query
+      self-attention 和 FFN refinement，让 query 可以多轮修正峰匹配结果。</p>
+      <h3>4. 分类头</h3>
+      <p>Cross-Attention 输出的 query 会和 CNN 全局 mean/max 特征、FFT 全局统计量融合，
+      再经过 MLP neck 和 normalized cosine classifier 预测 100315 个 MP 结构类别。
+      相比普通线性分类头，cosine classifier 更强调特征方向的类间间隔，
+      对大量相似结构的检索式分类更合适。默认配置为 <code>base_channels=64</code>、
+      <code>attn_dim=192</code>、<code>num_heads=6</code>、
+      <code>num_tokens=96</code>、<code>num_queries=4</code>、
+      <code>num_attn_layers=2</code>，约 2801 万可训练参数。
+      其中大部分参数来自 100315 分类的最后一层，这是该任务本身带来的主要开销。</p>
+      <h3>与原始 XQueryer 的主要不同</h3>
+      <p>保留的核心思想包括 FFT 增强、CNN 峰特征、元素引导 Cross-Attention 和
+      MP 结构直接分类。主要改进包括：从 MP500.db 动态模拟训练数据、统一 10-90 度谱图范围、
+      用紧凑元素 query 替代巨大元素序列展开、残差注意力 refinement、CNN/FFT 全局特征融合、
+      以及更适合大类别检索的 cosine 分类头。</p>
+    </section>
+
+    <section class="box">
+      <h2>训练方法</h2>
+      <pre><code>pip install torch ase scipy tqdm Pysimxrd
+
+torchrun --nproc_per_node=4 trainer.py \
+  --db_path data/MP500.db \
+  --epochs 100 \
+  --batch_size 64 \
+  --num_workers 8 \
+  --simulations_per_entry 20 \
+  --output_dir outputs/lightweight</code></pre>
+      <p>训练脚本会保存 <code>checkpoint_0000.pth</code>、
+      <code>latest.pth</code>、每轮 checkpoint 和验证集最优 <code>best.pth</code>。
+      checkpoint 中包含 EMA 权重，推理时会优先使用 EMA 模型。本地调试可使用 <code>--max_train_entries</code> 和
+      <code>--max_val_entries</code> 限制结构数量。</p>
+      <p>模型结构可调参数包括 <code>--base_channels</code>、
+      <code>--attn_dim</code>、<code>--num_heads</code>、
+      <code>--num_tokens</code> 和 <code>--num_queries</code>。增大这些参数通常会提高容量，
+      但显存和训练时间也会增加；减小参数适合做消融或更轻量部署。</p>
+      <p>新增训练策略包括 warmup-cosine 学习率、AdamW、gradient clipping、
+      label smoothing、top-1/top-5/top-10 指标、可选弱 XRD mixup 和 EMA
+      验证/保存。这些改动主要是为了在动态模拟噪声和 100315 大分类任务下稳定训练。</p>
+    </section>
+
+    <section class="box">
+      <h2>推理方法</h2>
+      <p>实验 XRD 使用 CSV 格式，必须包含 <code>angle</code> 和
+      <code>intensity</code> 两列。推理脚本会把输入谱图线性插值到
+      10 到 90 度范围内的 3500 个点，然后输出 top-k 预测结构。</p>
+      <pre><code>python inference.py \
+  --checkpoint outputs/lightweight/checkpoints/best.pth \
+  --inputs "exp_data/*.csv" \
+  --topk 5</code></pre>
+    </section>
+
+    <section class="box">
+      <h2>文献引用</h2>
+      <pre><code>@article{cao2025xqueryer,
+  title={XQueryer: an intelligent crystal structure identifier for powder X-ray diffraction},
+  author={Cao, Bin and Zheng, Zinan and Liu, Yang and Zhang, Longhan and Wong, Lawrence WY and Weng, Lu-Tao and Li, Jia and Li, Haoxiang and Zhang, Tong-Yi},
+  journal={National Science Review},
+  volume={12},
+  number={12},
+  pages={nwaf421},
+  year={2025},
+  publisher={Oxford University Press}
+}</code></pre>
+    </section>
+  </main>
+</body>
+</html>

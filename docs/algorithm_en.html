@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XQueryer Lightweight Algorithm Manual</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; color: #1f2933; background: #f7f8fa; }
+    header, main { max-width: 980px; margin: 0 auto; padding: 24px; }
+    header { background: #ffffff; border-bottom: 1px solid #d8dee4; }
+    h1, h2 { color: #0f172a; }
+    code, pre { background: #eef2f7; border-radius: 6px; }
+    code { padding: 2px 5px; }
+    pre { padding: 14px; overflow-x: auto; }
+    a { color: #0b63ce; }
+    .nav { display: flex; gap: 12px; flex-wrap: wrap; }
+    .box { background: #ffffff; border: 1px solid #d8dee4; border-radius: 8px; padding: 18px; margin: 16px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="nav">
+      <a href="algorithm_zh.html">中文</a>
+      <a href="README.md">README</a>
+      <a href="https://github.com/Bin-Cao/XQueryer">Original XQueryer</a>
+    </div>
+    <h1>XQueryer Lightweight Algorithm Manual</h1>
+    <p>Author: Dr. Bin Cao, <a href="https://bin-cao.github.io/">https://bin-cao.github.io/</a></p>
+  </header>
+  <main>
+    <section class="box">
+      <h2>Overview</h2>
+      <p>This project is a lightweight improved version of XQueryer, the
+      intelligent crystal structure identifier for powder X-ray diffraction.
+      It keeps the 100315-class identification task and changes the data path
+      from pre-imported XRD arrays to dynamic simulation from crystal structures
+      stored in <code>MP500.db</code>. All patterns are aligned to 3500 points
+      over 10-90 degrees.</p>
+    </section>
+
+    <section class="box">
+      <h2>Data</h2>
+      <p>Download <code>MP500.db</code> from the GitHub release of this project
+      and place it at <code>data/MP500.db</code>. It is an ASE database with
+      100315 structures. ASE row ids start at 1; model labels are
+      <code>entry_id - 1</code>, so labels are <code>0..100314</code>.</p>
+      <p>The deterministic split is 8:1:1 by structure id after seed-based
+      shuffling: train 80%, validation 10%, and test 10%.</p>
+    </section>
+
+    <section class="box">
+      <h2>Dynamic XRD Simulation</h2>
+      <p>For each structure, the dataset samples physical and instrumental
+      parameters and calls <code>Pysimxrd.generator.parser(database, entry_id, ...)</code>.
+      Training uses 20 simulated patterns per structure by default.</p>
+      <pre><code>grainsize: 10-100
+prefect_orientation: -0.3 to 0.3 for both values
+thermo_vibration: 0-2
+zero_shift: 0-2
+dis_detector2sample: 300-600
+half_height_slit_detector: 3-8
+half_height_sample: 1-4
+xrd: reciprocal
+background_order: 6
+background_ratio: 0.02-0.2
+mixture_noise_ratio: 0.01-0.1</code></pre>
+    </section>
+
+    <section class="box">
+      <h2>Model</h2>
+      <p>The lightweight model keeps the same conceptual framework as XQueryer:
+      FFT processing, CNN feature extraction, Cross-Attention, and a final
+      classification head. The main change is that the very large
+      element-to-sequence expansion is replaced by a small set of
+      element-conditioned queries.</p>
+      <h3>1. FFT branch</h3>
+      <p>Each normalized XRD pattern is transformed with real FFT. Several
+      low-pass frequency views are reconstructed with inverse FFT and
+      concatenated with the original signal. This keeps the original XQueryer
+      idea of frequency-aware peak denoising and improves robustness to
+      background, broadening, and high-frequency noise.</p>
+      <h3>2. CNN peak encoder</h3>
+      <p>The four-channel signal is passed through residual depthwise-separable
+      1D convolution blocks. Large kernels capture peak width and local shifts,
+      while strided blocks progressively reduce sequence length. This gives a
+      lighter local feature extractor than standard wide convolutions while
+      preserving peak-shape information.</p>
+      <h3>3. Residual Cross-Attention</h3>
+      <p>CNN features are pooled into a fixed number of XRD tokens. A
+      92-dimensional element-presence vector is encoded into several structure
+      queries. These queries attend to the XRD tokens through multi-head
+      Cross-Attention, so chemical composition guides which diffraction tokens
+      matter most. This replaces the original expensive
+      <code>element -> 768 x 3500</code> mapping with compact learned queries.
+      Each attention layer uses residual cross-attention, query self-attention,
+      and an FFN refinement block, giving the queries multiple chances to match
+      peak tokens while remaining much smaller than the original expansion.</p>
+      <h3>4. Classification head</h3>
+      <p>The attended queries are fused with CNN global mean/max features and
+      FFT global statistics. The fused representation is passed through an MLP
+      neck and a normalized cosine classifier over 100315 MP entries. This is
+      different from a plain linear head: normalized features encourage better
+      angular separation between many similar structures. The default model uses
+      <code>base_channels=64</code>,
+      <code>attn_dim=192</code>, <code>num_heads=6</code>,
+      <code>num_tokens=96</code>, <code>num_queries=4</code>, and
+      <code>num_attn_layers=2</code>, giving about 28.0M trainable parameters.
+      Most parameters are in the unavoidable
+      100315-class final layer.</p>
+      <h3>Differences from original XQueryer</h3>
+      <p>The main retained ideas are FFT enhancement, CNN peak features,
+      element-conditioned Cross-Attention, and direct MP-entry classification.
+      The main changes are dynamic Pysimxrd training data, 10-90 degree
+      alignment, compact element queries instead of huge element sequence
+      expansion, residual attention refinement, CNN/FFT feature fusion, and a
+      cosine retrieval-style classifier.</p>
+    </section>
+
+    <section class="box">
+      <h2>Training</h2>
+      <pre><code>pip install torch ase scipy tqdm Pysimxrd
+
+torchrun --nproc_per_node=4 trainer.py \
+  --db_path data/MP500.db \
+  --epochs 100 \
+  --batch_size 64 \
+  --num_workers 8 \
+  --simulations_per_entry 20 \
+  --output_dir outputs/lightweight</code></pre>
+      <p>The trainer saves <code>checkpoint_0000.pth</code>,
+      <code>latest.pth</code>, per-epoch checkpoints, and <code>best.pth</code>.
+      Checkpoints include EMA weights and inference uses EMA by default when
+      available.</p>
+      <p>Architecture knobs for cluster experiments are
+      <code>--base_channels</code>, <code>--attn_dim</code>,
+      <code>--num_heads</code>, <code>--num_tokens</code>, and
+      <code>--num_queries</code>. Increasing them may improve accuracy at higher
+      memory cost; reducing them gives a smaller model for ablation.</p>
+      <p>Training improvements include warmup-cosine learning-rate scheduling,
+      AdamW, gradient clipping, label smoothing, top-1/top-5/top-10 reporting,
+      optional weak XRD mixup, and EMA validation/checkpointing.</p>
+    </section>
+
+    <section class="box">
+      <h2>Inference</h2>
+      <p>Experimental files must be CSV files with <code>angle</code> and
+      <code>intensity</code> columns. The script interpolates each pattern to
+      3500 points over 10 to 90 degrees.</p>
+      <pre><code>python inference.py \
+  --checkpoint outputs/lightweight/checkpoints/best.pth \
+  --inputs "exp_data/*.csv" \
+  --topk 5</code></pre>
+    </section>
+
+    <section class="box">
+      <h2>Citation</h2>
+      <pre><code>@article{cao2025xqueryer,
+  title={XQueryer: an intelligent crystal structure identifier for powder X-ray diffraction},
+  author={Cao, Bin and Zheng, Zinan and Liu, Yang and Zhang, Longhan and Wong, Lawrence WY and Weng, Lu-Tao and Li, Jia and Li, Haoxiang and Zhang, Tong-Yi},
+  journal={National Science Review},
+  volume={12},
+  number={12},
+  pages={nwaf421},
+  year={2025},
+  publisher={Oxford University Press}
+}</code></pre>
+    </section>
+  </main>
+</body>
+</html>
