@@ -1,11 +1,17 @@
+<div align="center">
+
 # XQueryer Lightweight
+
+분말 XRD 기반 경량 결정 구조 식별 도구.
 
 [![GitHub stars](https://img.shields.io/github/stars/Asterbin/Asterbin-XQueryer-Lightweight?style=social)](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/stargazers)
 [![Release](https://img.shields.io/github/v/release/Asterbin/Asterbin-XQueryer-Lightweight?include_prereleases)](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/releases)
-[![Deploy documentation](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/actions/workflows/pages.yml/badge.svg)](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/actions/workflows/pages.yml)
+[![Documentation](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/actions/workflows/pages.yml/badge.svg)](https://asterbin.github.io/Asterbin-XQueryer-Lightweight/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
 
 [English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Español](README.es.md)
+
+</div>
 
 XQueryer Lightweight는 분말 X선 회절 기반 결정 구조 식별을 위한
 XQueryer의 경량 개선 버전입니다. 원본 프로젝트:
