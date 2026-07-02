@@ -33,8 +33,8 @@ data/MP500.db
 
 - 从 `MP500.db` 动态模拟 XRD，而不是预先导入固定 XRD。
 - 所有谱图统一插值到 10-90 度、3500 个点。
-- 按结构固定划分 train/val/test = 8:1:1。
-- 默认每个结构模拟 20 条 XRD。
+- 按 XRD 模拟层面划分：train/val/test 都覆盖全部 100315 个结构，但使用不同模拟参数组合。
+- 默认 train 每个结构模拟 20 条 XRD，val 每个结构 1 条，test 每个结构 2 条。
 - 模型保留 XQueryer 的 FFT、CNN、Cross-Attention、分类头框架。
 - 使用紧凑元素 query 替代巨大元素序列展开。
 - 训练支持 warmup-cosine、EMA、label smoothing、top-k 指标和可选弱 mixup。
@@ -56,6 +56,9 @@ torchrun --nproc_per_node=4 trainer.py \
   --batch_size 64 \
   --num_workers 8 \
   --simulations_per_entry 20 \
+  --val_simulations_per_entry 1 \
+  --test_simulations_per_entry 2 \
+  --test_interval 10 \
   --output_dir outputs/lightweight
 ```
 

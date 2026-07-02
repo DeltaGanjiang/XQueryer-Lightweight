@@ -44,7 +44,7 @@
       <div class="stats">
         <div class="stat"><strong>100315</strong><span>MP 结构类别</span></div>
         <div class="stat"><strong>10-90</strong><span>度 XRD 范围</span></div>
-        <div class="stat"><strong>20</strong><span>每结构模拟谱图</span></div>
+        <div class="stat"><strong>20/1/2</strong><span>train/val/test 模拟谱图</span></div>
         <div class="stat"><strong>28.0M</strong><span>可训练参数</span></div>
       </div>
     </div>
@@ -65,15 +65,17 @@
       <code>data/MP500.db</code>。该文件是 ASE 数据库，共 100315 条结构。
       ASE 的 entry id 从 1 开始；模型内部标签使用 <code>entry_id - 1</code>，
       因此分类编号为 <code>0..100314</code>。</p>
-      <p>数据按结构划分，不按模拟谱图划分。固定随机种子打乱后使用
-      8:1:1：80% 训练集、10% 验证集、10% 测试集。</p>
+      <p>数据按 XRD 模拟层面划分。train、validation、test 都覆盖全部
+      100315 个结构，但各 split 使用不同的模拟参数随机种子区间，因此同一结构
+      会在三个 split 中以不同参数组合生成不同 XRD。</p>
     </section>
 
     <section class="box">
       <h2>动态 XRD 模拟</h2>
       <p>训练时，数据集会为每个结构随机抽取样品状态和外部环境参数，然后调用
       <code>Pysimxrd.generator.parser(database, entry_id, ...)</code>。
-      默认每个结构模拟 20 条 XRD。</p>
+      默认 train 每个结构模拟 20 条 XRD，validation 每个结构 1 条，
+      test 每个结构 2 条。</p>
       <pre><code>grainsize: 10-100
 prefect_orientation: 两个值均在 -0.3 到 0.3 之间
 thermo_vibration: 0-2

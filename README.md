@@ -24,8 +24,10 @@ Author: Dr. Bin Cao, https://bin-cao.github.io/
 - Dynamic XRD simulation from `data/MP500.db` with `Pysimxrd.generator.parser`.
 - All simulated and experimental XRD patterns are aligned to 3500 points over
   10-90 degrees.
-- Deterministic train/validation/test split at 8:1:1 over 100315 structures.
-- 20 simulated XRD patterns per structure by default.
+- XRD-level train/validation/test split: all splits cover all 100315
+  structures, but use different simulated parameter combinations.
+- 20 train XRD patterns, 1 validation XRD pattern, and 2 test XRD patterns
+  per structure by default.
 - XQueryer-compatible model framework with FFT filtering, CNN peak encoding,
   element-guided Cross-Attention, and a classification head. The heavy
   element-to-sequence expansion is replaced by compact element queries, giving
@@ -90,6 +92,9 @@ torchrun --nproc_per_node=4 trainer.py \
   --batch_size 64 \
   --num_workers 8 \
   --simulations_per_entry 20 \
+  --val_simulations_per_entry 1 \
+  --test_simulations_per_entry 2 \
+  --test_interval 10 \
   --output_dir outputs/lightweight
 ```
 

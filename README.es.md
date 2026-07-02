@@ -34,8 +34,10 @@ Los scripts de entrenamiento e inferencia usan esta ruta por defecto.
 
 - Simulación dinámica de XRD desde `MP500.db`.
 - Todos los patrones se interpolan a 3500 puntos entre 10 y 90 grados.
-- División por estructura train/val/test = 8:1:1.
-- 20 patrones XRD simulados por estructura por defecto.
+- División train/val/test a nivel de XRD: todos los splits contienen las
+  100315 estructuras, pero con parámetros de simulación diferentes.
+- Por defecto, 20 patrones XRD de entrenamiento, 1 de validación y 2 de prueba
+  por estructura.
 - Se conserva el marco de XQueryer: FFT, CNN, Cross-Attention y cabeza de clasificación.
 - La gran expansión de elementos a secuencia se sustituye por element queries compactas.
 - Entrenamiento con warmup-cosine, EMA, label smoothing, métricas top-k y mixup débil opcional.

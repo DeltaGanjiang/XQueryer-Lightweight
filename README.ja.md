@@ -34,8 +34,9 @@ data/MP500.db
 
 - `MP500.db` から XRD を動的にシミュレーション。
 - すべてのパターンを 10-90 度、3500 点に補間。
-- 構造単位で train/val/test = 8:1:1 に分割。
-- 各構造につきデフォルトで 20 本の XRD を生成。
+- XRD 単位の train/val/test 分割。すべての split に 100315 構造が含まれ、
+  split ごとに異なるシミュレーションパラメータを使います。
+- デフォルトでは各構造につき train 20 本、val 1 本、test 2 本の XRD を生成。
 - FFT、CNN、Cross-Attention、分類ヘッドという XQueryer の枠組みを維持。
 - 大きな元素系列展開を、軽量な element query に置き換え。
 - warmup-cosine、EMA、label smoothing、top-k 指標、弱い mixup に対応。

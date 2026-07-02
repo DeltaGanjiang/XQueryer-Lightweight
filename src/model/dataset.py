@@ -45,20 +45,24 @@ class SimulationRanges:
     mixture_noise_ratio: tuple[float, float] = (0.01, 0.1)
 
 
+SPLIT_SIMULATION_OFFSETS = {
+    "train": 0,
+    "val": 1_000_000,
+    "test": 2_000_000,
+    "all": 0,
+}
+
+
 def split_entry_ids(num_entries: int, split: str, seed: int = 42) -> list[int]:
-    ids = list(range(1, num_entries + 1))
-    rng = random.Random(seed)
-    rng.shuffle(ids)
-    train_end = int(num_entries * 0.8)
-    val_end = int(num_entries * 0.9)
-    if split == "train":
-        return ids[:train_end]
-    if split == "val":
-        return ids[train_end:val_end]
-    if split == "test":
-        return ids[val_end:]
-    if split == "all":
-        return ids
+    """Return structure ids included in a split.
+
+    Current training uses XRD-level splitting: train/val/test all contain every
+    crystal structure, but their simulated XRD patterns use disjoint simulation
+    seed ranges so the physical/instrumental parameters differ by split.
+    """
+    if split in SPLIT_SIMULATION_OFFSETS:
+        return list(range(1, num_entries + 1))
+
     raise ValueError(f"Unknown split: {split}")
 
 
@@ -175,7 +179,8 @@ class SimulatedXRDDataset(Dataset):
         entry_offset = index // self.simulations_per_entry
         sim_offset = index % self.simulations_per_entry
         entry_id = self.entry_ids[entry_offset]
-        rng = random.Random(self.seed * 1_000_003 + entry_id * 101 + sim_offset)
+        split_offset = SPLIT_SIMULATION_OFFSETS[self.split]
+        rng = random.Random(self.seed * 1_000_003 + entry_id * 101 + split_offset + sim_offset)
         kwargs = sample_simulation_kwargs(rng)
         angles, intensities = generator.parser(self.db, entry_id, **kwargs)
         xrd = interpolate_xrd(angles, intensities, num_points=self.num_points)

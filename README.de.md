@@ -35,8 +35,9 @@ Training und Inferenz verwenden diesen Pfad standardmäßig.
 
 - Dynamische XRD-Simulation aus `MP500.db`.
 - Alle Muster werden auf 3500 Punkte im Bereich 10-90 Grad interpoliert.
-- Strukturweiser Split train/val/test = 8:1:1.
-- Standardmäßig 20 simulierte XRD-Muster pro Struktur.
+- XRD-basierter train/val/test-Split: alle Splits enthalten alle 100315
+  Strukturen, aber mit unterschiedlichen Simulationsparametern.
+- Standardmäßig 20 Train-, 1 Validierungs- und 2 Test-XRD-Muster pro Struktur.
 - Das XQueryer-Framework aus FFT, CNN, Cross-Attention und Klassifikationskopf bleibt erhalten.
 - Die große Element-zu-Sequenz-Erweiterung wird durch kompakte Element-Queries ersetzt.
 - Training mit warmup-cosine, EMA, label smoothing, top-k Metriken und optionalem schwachem mixup.

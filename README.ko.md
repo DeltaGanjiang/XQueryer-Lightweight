@@ -34,8 +34,9 @@ data/MP500.db
 
 - `MP500.db`에서 XRD를 동적으로 시뮬레이션합니다.
 - 모든 패턴을 10-90도, 3500개 포인트로 보간합니다.
-- 구조 단위로 train/val/test = 8:1:1로 분할합니다.
-- 기본적으로 각 구조마다 20개의 XRD 패턴을 생성합니다.
+- XRD 단위로 train/val/test를 분할합니다. 모든 split은 100315개 구조를
+  모두 포함하지만 서로 다른 시뮬레이션 파라미터를 사용합니다.
+- 기본적으로 각 구조마다 train 20개, val 1개, test 2개의 XRD 패턴을 생성합니다.
 - FFT, CNN, Cross-Attention, classification head라는 XQueryer 프레임워크를 유지합니다.
 - 큰 element-to-sequence 확장을 compact element query로 대체합니다.
 - warmup-cosine, EMA, label smoothing, top-k metric, 선택적 약한 mixup을 지원합니다.

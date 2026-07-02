@@ -62,6 +62,18 @@ def topk_accuracy(logits: torch.Tensor, labels: torch.Tensor, topk: tuple[int, .
     return result
 
 
+def topk_correct_counts(logits: torch.Tensor, labels: torch.Tensor, topk: tuple[int, ...] = (1, 5, 10)) -> dict[int, float]:
+    max_k = min(max(topk), logits.shape[1])
+    _, pred = logits.topk(max_k, dim=1)
+    pred = pred.t()
+    correct = pred.eq(labels.view(1, -1))
+    result = {}
+    for k in topk:
+        k = min(k, logits.shape[1])
+        result[k] = float(correct[:k].reshape(-1).float().sum().item())
+    return result
+
+
 def soft_cross_entropy(logits: torch.Tensor, labels: torch.Tensor, smoothing: float = 0.0) -> torch.Tensor:
     return F.cross_entropy(logits, labels, label_smoothing=smoothing)
 
@@ -132,10 +144,10 @@ def run_epoch(
     total_top1 = 0.0
     total_top5 = 0.0
     total_top10 = 0.0
-    steps = 0
+    total_samples = 0.0
     iterator = loader
     if rank == 0:
-        iterator = tqdm(loader, desc=f"{'train' if train else 'val'} epoch {epoch}", leave=False)
+        iterator = tqdm(loader, desc=f"{'train' if train else 'eval'} epoch {epoch}", leave=False)
 
     for batch in iterator:
         xrd = batch["intensity"].to(device, non_blocking=True)
@@ -168,18 +180,29 @@ def run_epoch(
                 if ema is not None:
                     ema.update(model)
 
-        total_loss += float(loss.detach().cpu())
-        accs = topk_accuracy(logits.detach(), labels)
-        total_top1 += accs[1]
-        total_top5 += accs[5]
-        total_top10 += accs[10]
-        steps += 1
+        batch_size = float(labels.numel())
+        total_loss += float(loss.detach().cpu()) * batch_size
+        corrects = topk_correct_counts(logits.detach(), labels)
+        total_top1 += corrects[1]
+        total_top5 += corrects[5]
+        total_top10 += corrects[10]
+        total_samples += batch_size
+
+    totals = torch.tensor(
+        [total_loss, total_top1, total_top5, total_top10, total_samples],
+        dtype=torch.float64,
+        device=device,
+    )
+    if is_dist():
+        dist.all_reduce(totals, op=dist.ReduceOp.SUM)
+    total_loss, total_top1, total_top5, total_top10, total_samples = totals.tolist()
+    total_samples = max(total_samples, 1.0)
 
     return (
-        total_loss / max(steps, 1),
-        total_top1 / max(steps, 1),
-        total_top5 / max(steps, 1),
-        total_top10 / max(steps, 1),
+        total_loss / total_samples,
+        total_top1 / total_samples,
+        total_top5 / total_samples,
+        total_top10 / total_samples,
     )
 
 
@@ -230,6 +253,9 @@ def main() -> None:
     parser.add_argument("--mixup_alpha", default=0.0, type=float, help="Weak XRD mixup; 0 disables it.")
     parser.add_argument("--ema_decay", default=0.999, type=float, help="0 disables EMA.")
     parser.add_argument("--simulations_per_entry", default=20, type=int)
+    parser.add_argument("--val_simulations_per_entry", default=1, type=int)
+    parser.add_argument("--test_simulations_per_entry", default=2, type=int)
+    parser.add_argument("--test_interval", default=10, type=int, help="Evaluate test split every N epochs; 0 disables it.")
     parser.add_argument("--num_classes", default=DEFAULT_NUM_CLASSES, type=int)
     parser.add_argument("--input_length", default=3500, type=int)
     parser.add_argument("--base_channels", default=64, type=int)
@@ -243,6 +269,7 @@ def main() -> None:
     parser.add_argument("--seed", default=42, type=int)
     parser.add_argument("--max_train_entries", default=None, type=int, help="Debug limit for train structures.")
     parser.add_argument("--max_val_entries", default=None, type=int, help="Debug limit for val structures.")
+    parser.add_argument("--max_test_entries", default=None, type=int, help="Debug limit for test structures.")
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)
@@ -260,14 +287,23 @@ def main() -> None:
     val_set = SimulatedXRDDataset(
         args.db_path,
         split="val",
-        simulations_per_entry=1,
+        simulations_per_entry=args.val_simulations_per_entry,
         seed=args.seed,
         num_points=args.input_length,
         max_entries=args.max_val_entries,
     )
+    test_set = SimulatedXRDDataset(
+        args.db_path,
+        split="test",
+        simulations_per_entry=args.test_simulations_per_entry,
+        seed=args.seed,
+        num_points=args.input_length,
+        max_entries=args.max_test_entries,
+    )
 
     train_sampler = DistributedSampler(train_set, shuffle=True) if distributed else None
     val_sampler = DistributedSampler(val_set, shuffle=False) if distributed else None
+    test_sampler = DistributedSampler(test_set, shuffle=False) if distributed else None
     train_loader = DataLoader(
         train_set,
         batch_size=args.batch_size,
@@ -282,6 +318,14 @@ def main() -> None:
         batch_size=args.batch_size,
         shuffle=False,
         sampler=val_sampler,
+        num_workers=args.num_workers,
+        pin_memory=device.type == "cuda",
+    )
+    test_loader = DataLoader(
+        test_set,
+        batch_size=args.batch_size,
+        shuffle=False,
+        sampler=test_sampler,
         num_workers=args.num_workers,
         pin_memory=device.type == "cuda",
     )
@@ -315,7 +359,7 @@ def main() -> None:
         with (output_dir / "config.json").open("w", encoding="utf-8") as handle:
             json.dump(vars(args), handle, indent=2)
         print(f"Device: {device}")
-        print(f"Train samples: {len(train_set)} | Val samples: {len(val_set)}")
+        print(f"Train samples: {len(train_set)} | Val samples: {len(val_set)} | Test samples: {len(test_set)}")
         print(f"Trainable parameters: {count_parameters(model.module if isinstance(model, DDP) else model):,}")
         save_checkpoint(output_dir / "checkpoints" / "checkpoint_0000.pth", model, optimizer, 0, args, ema)
         save_checkpoint(output_dir / "checkpoints" / "latest.pth", model, optimizer, 0, args, ema)
@@ -333,15 +377,27 @@ def main() -> None:
         val_loss, val_top1, val_top5, val_top10 = run_epoch(
             model, val_loader, criterion, None, None, scaler, None, device, rank, epoch, False, args
         )
+        test_metrics = None
+        if args.test_interval > 0 and epoch % args.test_interval == 0:
+            test_metrics = run_epoch(
+                model, test_loader, criterion, None, None, scaler, None, device, rank, epoch, False, args
+            )
         if ema is not None:
             ema.restore(model)
 
         if rank == 0:
-            print(
+            message = (
                 f"epoch={epoch} lr={optimizer.param_groups[0]['lr']:.6e} "
                 f"train_loss={train_loss:.4f} top1={train_top1:.4f} top5={train_top5:.4f} top10={train_top10:.4f} "
                 f"val_loss={val_loss:.4f} top1={val_top1:.4f} top5={val_top5:.4f} top10={val_top10:.4f}"
             )
+            if test_metrics is not None:
+                test_loss, test_top1, test_top5, test_top10 = test_metrics
+                message += (
+                    f" test_loss={test_loss:.4f} top1={test_top1:.4f} "
+                    f"top5={test_top5:.4f} top10={test_top10:.4f}"
+                )
+            print(message)
             save_checkpoint(output_dir / "checkpoints" / f"checkpoint_{epoch:04d}.pth", model, optimizer, epoch, args, ema)
             save_checkpoint(output_dir / "checkpoints" / "latest.pth", model, optimizer, epoch, args, ema)
             if val_loss < best_val:

@@ -44,7 +44,7 @@
       <div class="stats">
         <div class="stat"><strong>100315</strong><span>MP classes</span></div>
         <div class="stat"><strong>10-90</strong><span>degrees XRD range</span></div>
-        <div class="stat"><strong>20</strong><span>simulations per structure</span></div>
+        <div class="stat"><strong>20/1/2</strong><span>train/val/test simulations</span></div>
         <div class="stat"><strong>28.0M</strong><span>trainable parameters</span></div>
       </div>
     </div>
@@ -66,15 +66,18 @@
       and place it at <code>data/MP500.db</code>. It is an ASE database with
       100315 structures. ASE row ids start at 1; model labels are
       <code>entry_id - 1</code>, so labels are <code>0..100314</code>.</p>
-      <p>The deterministic split is 8:1:1 by structure id after seed-based
-      shuffling: train 80%, validation 10%, and test 10%.</p>
+      <p>The split is XRD-level. Train, validation, and test all cover the full
+      set of 100315 structures, but each split uses a different simulation seed
+      range so the same structure appears with different simulated parameter
+      combinations.</p>
     </section>
 
     <section class="box">
       <h2>Dynamic XRD Simulation</h2>
       <p>For each structure, the dataset samples physical and instrumental
       parameters and calls <code>Pysimxrd.generator.parser(database, entry_id, ...)</code>.
-      Training uses 20 simulated patterns per structure by default.</p>
+      By default, train simulates 20 XRD patterns per structure, validation
+      simulates 1, and test simulates 2.</p>
       <pre><code>grainsize: 10-100
 prefect_orientation: -0.3 to 0.3 for both values
 thermo_vibration: 0-2
