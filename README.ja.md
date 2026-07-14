@@ -30,6 +30,18 @@ data/MP500.db
 
 学習と推論スクリプトはこのパスをデフォルトで使用します。
 
+## 学習済みチェックポイント
+
+検証セットで最良だった重み `best.pth` は、このリポジトリの
+[GitHub Releases ページ](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/releases)から取得できます。
+デフォルトの推論コマンドを使用するには、ダウンロード後に次の場所へ配置してください。
+
+```text
+outputs/lightweight/checkpoints/best.pth
+```
+
+別の場所に置く場合は、`--checkpoint` でそのパスを指定してください。
+
 ## 主な特徴
 
 - `MP500.db` から XRD を動的にシミュレーション。

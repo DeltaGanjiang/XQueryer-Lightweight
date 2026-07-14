@@ -29,6 +29,18 @@ data/MP500.db
 
 训练和推理脚本默认读取这个路径。`.gitignore` 已经配置为忽略本地数据文件。
 
+## 预训练模型
+
+验证集最优权重 `best.pth` 已上传到本仓库的
+[GitHub Releases 页面](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/releases)。
+如需直接使用默认推理命令，请下载后放到：
+
+```text
+outputs/lightweight/checkpoints/best.pth
+```
+
+也可以通过 `--checkpoint` 指定下载后的其他路径。
+
 ## 主要特点
 
 - 从 `MP500.db` 动态模拟 XRD，而不是预先导入固定 XRD。

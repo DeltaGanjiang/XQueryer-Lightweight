@@ -30,6 +30,19 @@ data/MP500.db
 
 Los scripts de entrenamiento e inferencia usan esta ruta por defecto.
 
+## Punto de control preentrenado
+
+El mejor punto de control de validación, `best.pth`, está disponible en la
+[página de GitHub Releases](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/releases)
+de este repositorio. Para usar el comando de inferencia predeterminado,
+descárguelo y colóquelo en:
+
+```text
+outputs/lightweight/checkpoints/best.pth
+```
+
+También puede indicar la ruta descargada mediante `--checkpoint`.
+
 ## Características principales
 
 - Simulación dinámica de XRD desde `MP500.db`.

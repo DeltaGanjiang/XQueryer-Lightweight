@@ -62,6 +62,18 @@ data/MP500.db
 The training and inference scripts use this path by default. Keep the database
 out of normal commits; `.gitignore` is configured to ignore local data files.
 
+## Pre-trained checkpoint
+
+The best validation checkpoint, `best.pth`, is available from this repository's
+[Releases page](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/releases).
+To use the default inference command, download it and place it at:
+
+```text
+outputs/lightweight/checkpoints/best.pth
+```
+
+Alternatively, pass its downloaded location with `--checkpoint`.
+
 ## Install
 
 ```bash

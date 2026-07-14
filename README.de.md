@@ -31,6 +31,19 @@ data/MP500.db
 
 Training und Inferenz verwenden diesen Pfad standardmäßig.
 
+## Vortrainierter Checkpoint
+
+Der beste Validierungs-Checkpoint `best.pth` ist auf der
+[GitHub-Releases-Seite](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/releases)
+dieses Repositories verfügbar. Für den Standard-Inferenzbefehl laden Sie ihn
+herunter und legen ihn hier ab:
+
+```text
+outputs/lightweight/checkpoints/best.pth
+```
+
+Alternativ können Sie den heruntergeladenen Pfad mit `--checkpoint` angeben.
+
 ## Hauptmerkmale
 
 - Dynamische XRD-Simulation aus `MP500.db`.

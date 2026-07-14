@@ -30,6 +30,18 @@ data/MP500.db
 
 학습과 추론 스크립트는 이 경로를 기본값으로 사용합니다.
 
+## 사전 학습 체크포인트
+
+검증 세트 최적 가중치 `best.pth`는 이 저장소의
+[GitHub Releases 페이지](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/releases)에서
+다운로드할 수 있습니다. 기본 추론 명령을 사용하려면 다운로드한 파일을 다음 위치에 두십시오.
+
+```text
+outputs/lightweight/checkpoints/best.pth
+```
+
+다른 위치에 둘 경우 `--checkpoint`로 해당 경로를 지정하십시오.
+
 ## 주요 특징
 
 - `MP500.db`에서 XRD를 동적으로 시뮬레이션합니다.
