@@ -4,9 +4,9 @@
 
 粉末 XRD から結晶構造を識別する軽量ツール。
 
-[![GitHub stars](https://img.shields.io/github/stars/Asterbin/Asterbin-XQueryer-Lightweight?style=social)](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/stargazers)
-[![Release](https://img.shields.io/github/v/release/Asterbin/Asterbin-XQueryer-Lightweight?include_prereleases)](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/releases)
-[![Documentation](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/actions/workflows/pages.yml/badge.svg)](https://asterbin.github.io/Asterbin-XQueryer-Lightweight/)
+[![GitHub stars](https://img.shields.io/github/stars/DeltaGanjiang/XQueryer-Lightweight?style=social)](https://github.com/DeltaGanjiang/XQueryer-Lightweight/stargazers)
+[![Release](https://img.shields.io/github/v/release/DeltaGanjiang/XQueryer-Lightweight?include_prereleases)](https://github.com/DeltaGanjiang/XQueryer-Lightweight/releases)
+[![Documentation](https://github.com/DeltaGanjiang/XQueryer-Lightweight/actions/workflows/pages.yml/badge.svg)](https://deltaganjiang.github.io/XQueryer-Lightweight/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
 
 [English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Español](README.es.md)
@@ -33,7 +33,7 @@ data/MP500.db
 ## 学習済みチェックポイント
 
 検証セットで最良だった重み `best.pth` は、このリポジトリの
-[GitHub Releases ページ](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/releases)から取得できます。
+[GitHub Releases ページ](https://github.com/DeltaGanjiang/XQueryer-Lightweight/releases)から取得できます。
 デフォルトの推論コマンドを使用するには、ダウンロード後に次の場所へ配置してください。
 
 ```text

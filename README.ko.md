@@ -4,9 +4,9 @@
 
 분말 XRD 기반 경량 결정 구조 식별 도구.
 
-[![GitHub stars](https://img.shields.io/github/stars/Asterbin/Asterbin-XQueryer-Lightweight?style=social)](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/stargazers)
-[![Release](https://img.shields.io/github/v/release/Asterbin/Asterbin-XQueryer-Lightweight?include_prereleases)](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/releases)
-[![Documentation](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/actions/workflows/pages.yml/badge.svg)](https://asterbin.github.io/Asterbin-XQueryer-Lightweight/)
+[![GitHub stars](https://img.shields.io/github/stars/DeltaGanjiang/XQueryer-Lightweight?style=social)](https://github.com/DeltaGanjiang/XQueryer-Lightweight/stargazers)
+[![Release](https://img.shields.io/github/v/release/DeltaGanjiang/XQueryer-Lightweight?include_prereleases)](https://github.com/DeltaGanjiang/XQueryer-Lightweight/releases)
+[![Documentation](https://github.com/DeltaGanjiang/XQueryer-Lightweight/actions/workflows/pages.yml/badge.svg)](https://deltaganjiang.github.io/XQueryer-Lightweight/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
 
 [English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Español](README.es.md)
@@ -33,7 +33,7 @@ data/MP500.db
 ## 사전 학습 체크포인트
 
 검증 세트 최적 가중치 `best.pth`는 이 저장소의
-[GitHub Releases 페이지](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/releases)에서
+[GitHub Releases 페이지](https://github.com/DeltaGanjiang/XQueryer-Lightweight/releases)에서
 다운로드할 수 있습니다. 기본 추론 명령을 사용하려면 다운로드한 파일을 다음 위치에 두십시오.
 
 ```text

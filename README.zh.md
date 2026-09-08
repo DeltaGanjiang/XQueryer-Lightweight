@@ -4,9 +4,9 @@
 
 面向粉末 XRD 的轻量化晶体结构识别工具。
 
-[![GitHub stars](https://img.shields.io/github/stars/Asterbin/Asterbin-XQueryer-Lightweight?style=social)](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/stargazers)
-[![Release](https://img.shields.io/github/v/release/Asterbin/Asterbin-XQueryer-Lightweight?include_prereleases)](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/releases)
-[![Documentation](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/actions/workflows/pages.yml/badge.svg)](https://asterbin.github.io/Asterbin-XQueryer-Lightweight/)
+[![GitHub stars](https://img.shields.io/github/stars/DeltaGanjiang/XQueryer-Lightweight?style=social)](https://github.com/DeltaGanjiang/XQueryer-Lightweight/stargazers)
+[![Release](https://img.shields.io/github/v/release/DeltaGanjiang/XQueryer-Lightweight?include_prereleases)](https://github.com/DeltaGanjiang/XQueryer-Lightweight/releases)
+[![Documentation](https://github.com/DeltaGanjiang/XQueryer-Lightweight/actions/workflows/pages.yml/badge.svg)](https://deltaganjiang.github.io/XQueryer-Lightweight/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
 
 [English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Español](README.es.md)
@@ -32,7 +32,7 @@ data/MP500.db
 ## 预训练模型
 
 验证集最优权重 `best.pth` 已上传到本仓库的
-[GitHub Releases 页面](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/releases)。
+[GitHub Releases 页面](https://github.com/DeltaGanjiang/XQueryer-Lightweight/releases)。
 如需直接使用默认推理命令，请下载后放到：
 
 ```text

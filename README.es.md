@@ -4,9 +4,9 @@
 
 Identificación ligera de estructuras cristalinas a partir de XRD en polvo.
 
-[![GitHub stars](https://img.shields.io/github/stars/Asterbin/Asterbin-XQueryer-Lightweight?style=social)](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/stargazers)
-[![Release](https://img.shields.io/github/v/release/Asterbin/Asterbin-XQueryer-Lightweight?include_prereleases)](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/releases)
-[![Documentation](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/actions/workflows/pages.yml/badge.svg)](https://asterbin.github.io/Asterbin-XQueryer-Lightweight/)
+[![GitHub stars](https://img.shields.io/github/stars/DeltaGanjiang/XQueryer-Lightweight?style=social)](https://github.com/DeltaGanjiang/XQueryer-Lightweight/stargazers)
+[![Release](https://img.shields.io/github/v/release/DeltaGanjiang/XQueryer-Lightweight?include_prereleases)](https://github.com/DeltaGanjiang/XQueryer-Lightweight/releases)
+[![Documentation](https://github.com/DeltaGanjiang/XQueryer-Lightweight/actions/workflows/pages.yml/badge.svg)](https://deltaganjiang.github.io/XQueryer-Lightweight/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
 
 [English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Español](README.es.md)
@@ -33,7 +33,7 @@ Los scripts de entrenamiento e inferencia usan esta ruta por defecto.
 ## Punto de control preentrenado
 
 El mejor punto de control de validación, `best.pth`, está disponible en la
-[página de GitHub Releases](https://github.com/Asterbin/Asterbin-XQueryer-Lightweight/releases)
+[página de GitHub Releases](https://github.com/DeltaGanjiang/XQueryer-Lightweight/releases)
 de este repositorio. Para usar el comando de inferencia predeterminado,
 descárguelo y colóquelo en:
 
