@@ -23,6 +23,7 @@ from tqdm import tqdm
 
 from src.model.XQueryer import Xmodel, count_parameters
 from src.model.dataset import DEFAULT_NUM_CLASSES, SimulatedXRDDataset
+from src.model.simulation import RADIATION, resolve_target
 
 
 def is_dist() -> bool:
@@ -241,6 +242,7 @@ def build_scheduler(optimizer: torch.optim.Optimizer, warmup_steps: int, total_s
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train XQueryer Lightweight with dynamic Pysimxrd simulation.")
     parser.add_argument("--db_path", default="data/MP500.db", help="ASE database path with 100315 structures.")
+    parser.add_argument("--targets", "--target", nargs="+", type=resolve_target, choices=RADIATION, default=["Cu"], help="X-ray targets per structure; default Cu preserves Pysimxrd. Example: --targets Cu Co Mo Cr Fe Ag")
     parser.add_argument("--output_dir", default="outputs/lightweight", help="Directory for checkpoints and logs.")
     parser.add_argument("--epochs", default=1, type=int)
     parser.add_argument("--batch_size", default=16, type=int)
@@ -283,6 +285,7 @@ def main() -> None:
         seed=args.seed,
         num_points=args.input_length,
         max_entries=args.max_train_entries,
+        targets=args.targets,
     )
     val_set = SimulatedXRDDataset(
         args.db_path,
@@ -291,6 +294,7 @@ def main() -> None:
         seed=args.seed,
         num_points=args.input_length,
         max_entries=args.max_val_entries,
+        targets=args.targets,
     )
     test_set = SimulatedXRDDataset(
         args.db_path,
@@ -299,6 +303,7 @@ def main() -> None:
         seed=args.seed,
         num_points=args.input_length,
         max_entries=args.max_test_entries,
+        targets=args.targets,
     )
 
     train_sampler = DistributedSampler(train_set, shuffle=True) if distributed else None

@@ -20,6 +20,8 @@ from ase.db import connect
 from scipy.interpolate import interp1d
 from torch.utils.data import Dataset
 
+from .simulation import RADIATION, resolve_target, simulate_target_pattern
+
 try:
     from Pysimxrd import generator
 except ImportError:  # pragma: no cover - handled at runtime with a clear error.
@@ -137,6 +139,7 @@ class SimulatedXRDDataset(Dataset):
         num_points: int = DEFAULT_XRD_POINTS,
         max_entries: int | None = None,
         cache_structures: bool = False,
+        targets: Iterable[str] | str = ("Cu",),
     ):
         self.db_path = str(db_path)
         self.split = split
@@ -144,6 +147,12 @@ class SimulatedXRDDataset(Dataset):
         self.seed = seed
         self.num_points = num_points
         self.cache_structures = cache_structures
+        values = (targets,) if isinstance(targets, str) else tuple(targets)
+        self.targets = tuple(resolve_target(target) for target in values)
+        if not self.targets or len(set(self.targets)) != len(self.targets):
+            raise ValueError("targets must contain distinct X-ray targets")
+        if simulations_per_entry < 1 or num_points < 2 or seed < 0:
+            raise ValueError("Require simulations_per_entry >= 1, num_points >= 2 and seed >= 0")
         self._db = None
         self._element_cache: dict[int, np.ndarray] = {}
 
@@ -155,7 +164,7 @@ class SimulatedXRDDataset(Dataset):
         self.entry_ids = entry_ids
 
     def __len__(self) -> int:
-        return len(self.entry_ids) * self.simulations_per_entry
+        return len(self.entry_ids) * self.simulations_per_entry * len(self.targets)
 
     @property
     def db(self):
@@ -172,17 +181,31 @@ class SimulatedXRDDataset(Dataset):
             self._element_cache[entry_id] = vector
         return vector
 
-    def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
-        if generator is None:
+    def __getitem__(self, index: int) -> dict[str, torch.Tensor | str]:
+        if index < 0:
+            index += len(self)
+        if not 0 <= index < len(self):
+            raise IndexError(index)
+        target = self.targets[index % len(self.targets)]
+        sample_index = index // len(self.targets)
+        if target == "Cu" and generator is None:
             raise ImportError("Pysimxrd is required for dynamic XRD simulation.")
 
-        entry_offset = index // self.simulations_per_entry
-        sim_offset = index % self.simulations_per_entry
+        entry_offset = sample_index // self.simulations_per_entry
+        sim_offset = sample_index % self.simulations_per_entry
         entry_id = self.entry_ids[entry_offset]
         split_offset = SPLIT_SIMULATION_OFFSETS[self.split]
-        rng = random.Random(self.seed * 1_000_003 + entry_id * 101 + split_offset + sim_offset)
-        kwargs = sample_simulation_kwargs(rng)
-        angles, intensities = generator.parser(self.db, entry_id, **kwargs)
+        if target == "Cu":
+            rng = random.Random(self.seed * 1_000_003 + entry_id * 101 + split_offset + sim_offset)
+            kwargs = sample_simulation_kwargs(rng)
+            angles, intensities = generator.parser(self.db, entry_id, **kwargs)
+        else:
+            target_index = tuple(RADIATION).index(target)
+            rng = np.random.default_rng(np.random.SeedSequence([self.seed, entry_id, split_offset, sim_offset, target_index]))
+            angles, intensities = simulate_target_pattern(
+                self.db.get(entry_id).toatoms(), target, rng,
+                min_angle=XRD_MIN_ANGLE, max_angle=XRD_MAX_ANGLE,
+            )
         xrd = interpolate_xrd(angles, intensities, num_points=self.num_points)
         label = int(entry_id - 1)
         return {
@@ -190,6 +213,7 @@ class SimulatedXRDDataset(Dataset):
             "id": torch.tensor(label, dtype=torch.long),
             "element": torch.from_numpy(self._element_vector(entry_id)),
             "entry_id": torch.tensor(entry_id, dtype=torch.long),
+            "target": target,
         }
 
 
