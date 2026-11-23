@@ -1,0 +1,13 @@
+# Python 3.11. Core versions match the H100 training and simulation environment.
+ase==3.22.1
+h5py==3.14.0
+numpy==2.0.1
+pandas
+pymatgen==2025.10.7
+Pysimxrd==1.0.0
+scikit-learn
+scipy==1.14.0
+spglib
+tensorboardX
+torch==2.10.0
+tqdm==4.67.1

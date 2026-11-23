@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader, DistributedSampler
 from tqdm import tqdm
 
 from src.model.XQueryer import Xmodel, count_parameters
-from src.model.dataset import DEFAULT_NUM_CLASSES, SimulatedXRDDataset
+from src.model.dataset import DEFAULT_NUM_CLASSES, GanjiangXRDDataset, SimulatedXRDDataset
 from src.model.simulation import RADIATION, resolve_target
 
 
@@ -52,15 +52,7 @@ def cleanup(distributed: bool) -> None:
 
 
 def topk_accuracy(logits: torch.Tensor, labels: torch.Tensor, topk: tuple[int, ...] = (1, 5, 10)) -> dict[int, float]:
-    max_k = min(max(topk), logits.shape[1])
-    _, pred = logits.topk(max_k, dim=1)
-    pred = pred.t()
-    correct = pred.eq(labels.view(1, -1))
-    result = {}
-    for k in topk:
-        k = min(k, logits.shape[1])
-        result[k] = correct[:k].reshape(-1).float().sum().item() / labels.numel()
-    return result
+    return {k: count / labels.numel() for k, count in topk_correct_counts(logits, labels, topk).items()}
 
 
 def topk_correct_counts(logits: torch.Tensor, labels: torch.Tensor, topk: tuple[int, ...] = (1, 5, 10)) -> dict[int, float]:
@@ -70,8 +62,7 @@ def topk_correct_counts(logits: torch.Tensor, labels: torch.Tensor, topk: tuple[
     correct = pred.eq(labels.view(1, -1))
     result = {}
     for k in topk:
-        k = min(k, logits.shape[1])
-        result[k] = float(correct[:k].reshape(-1).float().sum().item())
+        result[k] = float(correct[:k].sum().item())
     return result
 
 
@@ -240,8 +231,10 @@ def build_scheduler(optimizer: torch.optim.Optimizer, warmup_steps: int, total_s
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train XQueryer Lightweight with dynamic Pysimxrd simulation.")
-    parser.add_argument("--db_path", default="data/MP500.db", help="ASE database path with 100315 structures.")
+    parser = argparse.ArgumentParser(description="Train XQueryer Lightweight with dynamic or precomputed XRD.")
+    parser.add_argument("--db_path", default="data/MP500.db", help="ASE crystal database path for dynamic simulation")
+    parser.add_argument("--hdf5_root", help="Ganjiang spectra directory containing <target>/patterns.h5")
+    parser.add_argument("--hdf5_holdout_root", help="Optional Ganjiang directory containing only validation and test views")
     parser.add_argument("--targets", "--target", nargs="+", type=resolve_target, choices=RADIATION, default=["Cu"], help="X-ray targets per structure; default Cu preserves Pysimxrd. Example: --targets Cu Co Mo Cr Fe Ag")
     parser.add_argument("--output_dir", default="outputs/lightweight", help="Directory for checkpoints and logs.")
     parser.add_argument("--epochs", default=1, type=int)
@@ -254,11 +247,11 @@ def main() -> None:
     parser.add_argument("--label_smoothing", default=0.05, type=float)
     parser.add_argument("--mixup_alpha", default=0.0, type=float, help="Weak XRD mixup; 0 disables it.")
     parser.add_argument("--ema_decay", default=0.999, type=float, help="0 disables EMA.")
-    parser.add_argument("--simulations_per_entry", default=20, type=int)
+    parser.add_argument("--simulations_per_entry", type=int, help="Training views per entry (shared HDF5: 17, separate holdout or dynamic: 20)")
     parser.add_argument("--val_simulations_per_entry", default=1, type=int)
     parser.add_argument("--test_simulations_per_entry", default=2, type=int)
     parser.add_argument("--test_interval", default=10, type=int, help="Evaluate test split every N epochs; 0 disables it.")
-    parser.add_argument("--num_classes", default=DEFAULT_NUM_CLASSES, type=int)
+    parser.add_argument("--num_classes", type=int, help="Defaults to the HDF5 catalog size or the MP500 model size")
     parser.add_argument("--input_length", default=3500, type=int)
     parser.add_argument("--base_channels", default=64, type=int)
     parser.add_argument("--attn_dim", default=192, type=int)
@@ -267,44 +260,67 @@ def main() -> None:
     parser.add_argument("--num_queries", default=4, type=int)
     parser.add_argument("--num_attn_layers", default=2, type=int)
     parser.add_argument("--classifier", default="cosine", choices=["cosine", "linear"])
+    parser.add_argument("--classifier_dim", default=256, type=int, help="Width of the features given to the classifier")
     parser.add_argument("--dropout", default=0.15, type=float)
     parser.add_argument("--seed", default=42, type=int)
     parser.add_argument("--max_train_entries", default=None, type=int, help="Debug limit for train structures.")
     parser.add_argument("--max_val_entries", default=None, type=int, help="Debug limit for val structures.")
     parser.add_argument("--max_test_entries", default=None, type=int, help="Debug limit for test structures.")
     args = parser.parse_args()
+    if args.hdf5_holdout_root and not args.hdf5_root:
+        parser.error("--hdf5_holdout_root requires --hdf5_root")
+    if args.classifier_dim < 1:
+        parser.error("--classifier_dim must be positive")
+    if args.simulations_per_entry is None:
+        args.simulations_per_entry = 17 if args.hdf5_root and not args.hdf5_holdout_root else 20
 
     torch.manual_seed(args.seed)
     device, rank, _local_rank, distributed = setup_device()
     output_dir = Path(args.output_dir)
 
-    train_set = SimulatedXRDDataset(
-        args.db_path,
+    dataset_class, source, extra = SimulatedXRDDataset, args.db_path, {"seed": args.seed}
+    if args.hdf5_root:
+        dataset_class, source = GanjiangXRDDataset, args.hdf5_root
+        val_start = 0 if args.hdf5_holdout_root else args.simulations_per_entry
+        extra = {"view_starts": {"train": 0, "val": val_start,
+                                 "test": val_start + args.val_simulations_per_entry}}
+    evaluation_source = args.hdf5_holdout_root or source
+
+    train_set = dataset_class(
+        source,
         split="train",
         simulations_per_entry=args.simulations_per_entry,
-        seed=args.seed,
         num_points=args.input_length,
         max_entries=args.max_train_entries,
         targets=args.targets,
+        **extra,
     )
-    val_set = SimulatedXRDDataset(
-        args.db_path,
+    val_set = dataset_class(
+        evaluation_source,
         split="val",
         simulations_per_entry=args.val_simulations_per_entry,
-        seed=args.seed,
         num_points=args.input_length,
         max_entries=args.max_val_entries,
         targets=args.targets,
+        **extra,
     )
-    test_set = SimulatedXRDDataset(
-        args.db_path,
+    test_set = dataset_class(
+        evaluation_source,
         split="test",
         simulations_per_entry=args.test_simulations_per_entry,
-        seed=args.seed,
         num_points=args.input_length,
         max_entries=args.max_test_entries,
         targets=args.targets,
+        **extra,
     )
+    args.element_dim = train_set.element_dim if args.hdf5_root else 92
+    if args.hdf5_root:
+        if args.num_classes is not None and args.num_classes != train_set.num_classes:
+            parser.error(f"--num_classes must be {train_set.num_classes} for the Ganjiang HDF5 catalog")
+        args.num_classes = train_set.num_classes
+        args.db_sha256 = train_set.db_sha256
+    elif args.num_classes is None:
+        args.num_classes = DEFAULT_NUM_CLASSES
 
     train_sampler = DistributedSampler(train_set, shuffle=True) if distributed else None
     val_sampler = DistributedSampler(val_set, shuffle=False) if distributed else None
@@ -314,6 +330,7 @@ def main() -> None:
         batch_size=args.batch_size,
         shuffle=train_sampler is None,
         sampler=train_sampler,
+        generator=torch.Generator().manual_seed(args.seed) if args.hdf5_root else None,
         num_workers=args.num_workers,
         pin_memory=device.type == "cuda",
         drop_last=True,
@@ -338,6 +355,7 @@ def main() -> None:
     model = Xmodel(
         input_length=args.input_length,
         num_classes=args.num_classes,
+        element_dim=args.element_dim,
         base_channels=args.base_channels,
         attn_dim=args.attn_dim,
         num_heads=args.num_heads,
@@ -346,6 +364,7 @@ def main() -> None:
         num_attn_layers=args.num_attn_layers,
         dropout=args.dropout,
         classifier=args.classifier,
+        classifier_dim=args.classifier_dim,
     ).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)

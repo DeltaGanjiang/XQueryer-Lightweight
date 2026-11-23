@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import csv
 import random
+from bisect import bisect_right
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -215,6 +216,67 @@ class SimulatedXRDDataset(Dataset):
             "entry_id": torch.tensor(entry_id, dtype=torch.long),
             "target": target,
         }
+
+
+class GanjiangXRDDataset(Dataset):
+    """Read disjoint simulated views from one or more Ganjiang target files."""
+
+    def __init__(self, root, *, split, simulations_per_entry, num_points, max_entries,
+                 targets, view_starts):
+        from simxrd.patterns import GanjiangPatterns
+
+        values = (targets,) if isinstance(targets, str) else tuple(targets)
+        targets = tuple(resolve_target(target) for target in values)
+        if not targets or len(set(targets)) != len(targets):
+            raise ValueError("targets must contain distinct X-ray targets")
+        self.files = [GanjiangPatterns(Path(root) / target / "patterns.h5") for target in targets]
+        first = self.files[0]
+        self.num_classes = int(first.entry_ids[-1])
+        self.element_dim = first.element_dim
+        self.db_sha256 = first.db_sha256
+        self.num_views = simulations_per_entry
+        self.start = view_starts[split]
+        stop = self.start + self.num_views
+        self.grid = np.linspace(XRD_MIN_ANGLE, XRD_MAX_ANGLE, num_points, dtype=np.float32)
+        self.offsets = [0]
+        self.valid_indices = []
+        if self.num_views < 1 or num_points < 2 or (max_entries is not None and max_entries < 1):
+            raise ValueError("Require positive entries and views and at least two XRD points")
+        for file, target in zip(self.files, targets):
+            if (file.target != target or file.db_sha256 != first.db_sha256
+                    or file.element_dim != first.element_dim or not np.array_equal(file.entry_ids, first.entry_ids)):
+                raise ValueError(f"Ganjiang crystal catalog or X-ray target differs in {file.path}")
+            if stop > file.shape[1]:
+                raise ValueError(f"{split} requires views {self.start}–{stop - 1}, but {file.path} has {file.shape[1]}")
+            mask = file.valid[:max_entries, self.start:stop]
+            selected = None if mask.all() else np.flatnonzero(mask)
+            self.valid_indices.append(selected)
+            self.offsets.append(self.offsets[-1] + (mask.size if selected is None else len(selected)))
+        if not len(self):
+            raise ValueError(f"No usable spectra in the {split} split")
+
+    def __len__(self):
+        return self.offsets[-1]
+
+    def __getitem__(self, index):
+        if index < 0:
+            index += len(self)
+        if not 0 <= index < len(self):
+            raise IndexError(index)
+        bank = bisect_right(self.offsets, index) - 1
+        file = self.files[bank]
+        index -= self.offsets[bank]
+        if self.valid_indices[bank] is not None:
+            index = int(self.valid_indices[bank][index])
+        row, view = divmod(index, self.num_views)
+        intensity = file.pattern(row, self.start + view, self.grid)
+        maximum = float(intensity.max())
+        if maximum > 0:
+            intensity = intensity * (100.0 / maximum)
+        entry_id = int(file.entry_ids[row])
+        return {"intensity": torch.from_numpy(intensity), "id": torch.tensor(entry_id - 1, dtype=torch.long),
+                "element": torch.from_numpy(file.handle["elements"][row].astype(np.float32)),
+                "entry_id": torch.tensor(entry_id, dtype=torch.long), "target": file.target}
 
 
 class ExperimentalXRDDataset(Dataset):

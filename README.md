@@ -147,6 +147,13 @@ angle,intensity
 
 The inference script uses EMA weights when a checkpoint contains `ema_model`.
 
+## GanJiang training
+
+The GanJiang workflow supports Cu, Co, Mo, Cr, Fe and Ag spectra stored as
+HDF5. The six formal models use a 512-dimensional cosine classifier and 20
+training, 1 validation and 2 test spectra per structure. The setup, simulation
+and training commands are in the [GanJiang guide](docs/ganjiang.md).
+
 ## Citation
 
 ```bibtex

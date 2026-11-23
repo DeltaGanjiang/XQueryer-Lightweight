@@ -179,9 +179,12 @@ class Xmodel(nn.Module):
         element_dim: int = 92,
         dropout: float = 0.15,
         classifier: str = "cosine",
+        classifier_dim: int = 256,
         **_: object,
     ):
         super().__init__()
+        if classifier_dim < 1:
+            raise ValueError("classifier_dim must be positive")
         self.input_length = input_length
         self.num_classes = num_classes
         self.element_dim = element_dim
@@ -209,15 +212,15 @@ class Xmodel(nn.Module):
             nn.LayerNorm(512),
             nn.SiLU(inplace=True),
             nn.Dropout(dropout),
-            nn.Linear(512, 256),
-            nn.LayerNorm(256),
+            nn.Linear(512, classifier_dim),
+            nn.LayerNorm(classifier_dim),
             nn.SiLU(inplace=True),
             nn.Dropout(dropout),
         )
         if classifier == "cosine":
-            self.cls_head = CosineClassifier(256, num_classes)
+            self.cls_head = CosineClassifier(classifier_dim, num_classes)
         elif classifier == "linear":
-            self.cls_head = nn.Linear(256, num_classes)
+            self.cls_head = nn.Linear(classifier_dim, num_classes)
         else:
             raise ValueError("classifier must be 'cosine' or 'linear'")
         self._init_weights()

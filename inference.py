@@ -23,9 +23,15 @@ from src.model.dataset import DEFAULT_NUM_CLASSES, ExperimentalXRDDataset
 def load_model(checkpoint_path: str, device: torch.device, args: argparse.Namespace) -> Xmodel:
     checkpoint = torch.load(checkpoint_path, map_location=device)
     saved_args = checkpoint.get("args", {})
+    if saved_args.get("db_sha256"):
+        from simxrd.patterns import file_sha256
+
+        if file_sha256(args.db_path) != saved_args["db_sha256"]:
+            raise ValueError("--db_path does not match the Ganjiang catalog used by this checkpoint")
     model = Xmodel(
         input_length=int(saved_args.get("input_length", args.input_length)),
         num_classes=int(saved_args.get("num_classes", args.num_classes)),
+        element_dim=int(saved_args.get("element_dim", 92)),
         base_channels=int(saved_args.get("base_channels", args.base_channels)),
         attn_dim=int(saved_args.get("attn_dim", args.attn_dim)),
         num_heads=int(saved_args.get("num_heads", args.num_heads)),
@@ -34,6 +40,7 @@ def load_model(checkpoint_path: str, device: torch.device, args: argparse.Namesp
         num_attn_layers=int(saved_args.get("num_attn_layers", args.num_attn_layers)),
         dropout=float(saved_args.get("dropout", 0.0)),
         classifier=str(saved_args.get("classifier", args.classifier)),
+        classifier_dim=int(saved_args.get("classifier_dim", 256)),
     )
     state = checkpoint.get("ema_model") or checkpoint["model"]
     model.load_state_dict(state)
@@ -91,8 +98,11 @@ def main() -> None:
                 for score, class_id in zip(score_row.tolist(), class_row.tolist()):
                     entry_id = int(class_id) + 1
                     row = database.get(entry_id)
-                    mpid = row.key_value_pairs.get("mpid", "unknown")
-                    print(f"  class={class_id} entry_id={entry_id} mpid={mpid} score={score:.6f}")
+                    values = row.key_value_pairs
+                    identifier = f"mpid={values.get('mpid', 'unknown')}"
+                    if "label" in values and not values.get("mpid"):
+                        identifier = f"label={values['label']}"
+                    print(f"  class={class_id} entry_id={entry_id} {identifier} score={score:.6f}")
 
 
 if __name__ == "__main__":

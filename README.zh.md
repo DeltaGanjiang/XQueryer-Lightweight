@@ -84,3 +84,9 @@ python inference.py \
 ```
 
 实验 CSV 需要包含 `angle,intensity` 两列。
+
+## GanJiang 训练
+
+GanJiang 流程支持 Cu、Co、Mo、Cr、Fe、Ag 六种靶材的 HDF5 谱图。正式模型使用
+512 维余弦分类头，每个结构对应 20 条训练谱、1 条验证谱和 2 条测试谱。
+环境配置、谱图生成和训练命令见 [GanJiang 使用说明](docs/ganjiang.md)。
