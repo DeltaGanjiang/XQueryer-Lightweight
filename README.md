@@ -147,6 +147,26 @@ angle,intensity
 
 The inference script uses EMA weights when a checkpoint contains `ema_model`.
 
+### GanJiang Cu inference
+
+Download [the GanJiang inference bundle](https://github.com/DeltaGanjiang/XQueryer-Lightweight/releases/download/ganjiang-cu-inference-bc846d0/ganjiang-inference.zip)
+and [Cu.safetensors](https://github.com/DeltaGanjiang/XQueryer-Lightweight/releases/download/ganjiang-cu-inference-bc846d0/Cu.safetensors).
+Extract the bundle in the repository root and save the weights as
+`ganjiang-inference/weights/Cu.safetensors`. The bundle includes the inference
+script, model implementation, `config.json` metadata, and dependencies.
+
+```bash
+conda create -n ganjiang-query python=3.11 pip
+conda activate ganjiang-query
+python -m pip install -r ganjiang-inference/requirements.txt
+python ganjiang-inference/inference.py --target Cu --inputs sample.csv --topk 5
+```
+
+Use a Cu Kα spectrum with the `angle,intensity` CSV header. The `angle` column
+is 2θ in degrees. The script reports class indices, GanJiang entry IDs, and
+scores. To display MP IDs or labels, install `ase` and pass
+`--db-path /path/to/ganjiang_db_v1.db` with the matching training database.
+
 ## GanJiang training
 
 The GanJiang workflow supports Cu, Co, Mo, Cr, Fe and Ag spectra stored as
